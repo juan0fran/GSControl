@@ -149,18 +149,18 @@ int GsControl::handleCommand()
                     if (cmd_enable_rot->enable_flag)
                         std::cout << "Rotors Enabled" << std::endl;
                     else
-                        std::cout << "Rotors Disabled" << std::endl;lara
+                        std::cout << "Rotors Disabled" << std::endl;
                 break;
-                case CMD_ID_SET_MANUAL_POSITION:PG IN THA HOUSE
+                case CMD_ID_SET_MANUAL_POSITION:
 
                     break;
-                case CMD_ID_CHNG_TRX:SPARTAN ROCKET
+                case CMD_ID_CHNG_TRX:
 
                     break;
-                case CMD_ID_CHNG_POL:#THISISWHYWEPLAY
+                case CMD_ID_CHNG_POL:
 
                     break;
-                case CMD_ID_CHANGE_OP_PARMS:#TRESKACIO
+                case CMD_ID_CHANGE_OP_PARMS:
 
                     break;
                 default:
