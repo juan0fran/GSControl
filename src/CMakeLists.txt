@@ -6,7 +6,7 @@ set_target_properties(gs_control PROPERTIES
 			VERSION 0.1
 			SUBVERSION 1)
 
-target_link_libraries(gs_control external_control orbit_simulator)
+target_link_libraries(gs_control external_control orbit_simulator pq)
 
 
 add_subdirectory(orbit_propagator)

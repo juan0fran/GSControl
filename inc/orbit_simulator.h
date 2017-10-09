@@ -6,10 +6,10 @@
 #include "link.h"
 #include "payload_tracker_api.h"
 
-typedef struct SimulatorResults {
+struct SimulatorResults {
     propagation_output_t propagation;
     LinkResults link;
-}SimulatorResults;
+};
 
 typedef std::vector<SimulatorResults> SimulatorResultsVec;
 
@@ -23,9 +23,6 @@ class OrbitSimulator : public Link{
         void SetGroundLocation(double lat, double lon, double height);
         void SetSpaceTLEFile(const char *tle);
         void SetTimestep(unsigned long timestep);
-
-        void SetSimulationInterval(unsigned long start, unsigned long end);
-        void SetSimulationInterval(unsigned long start, unsigned long end, unsigned int timestep);
 
         std::string GetResults();
 
@@ -42,10 +39,7 @@ class OrbitSimulator : public Link{
     private:
         visibility_config_t     _orbit_conf;
         double                  _min_elev;
-        unsigned long           _sim_start;
-        unsigned long           _sim_end;
         unsigned long           _sim_timestep;
-        unsigned int            _npoints_forecast;
 
         unsigned long           _last_pass_start;
         unsigned long           _last_pass_end;

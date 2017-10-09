@@ -11,6 +11,8 @@
 #include "rotor_control.h"
 #include "gs_commands.h"
 
+#include <libpq-fe.h>
+
 #define TIMESTAMP_T uint32_t
 
 /* GS Commands:
@@ -26,7 +28,7 @@
 
 
 
-class GsControl {
+class GsControl : Motor_Angles{
     public:
         GsControl();
 
@@ -39,22 +41,37 @@ class GsControl {
         void loadParms();
 
         void addNextPassFrom(TIMESTAMP_T t);
-        void printPass();
+        void addNextPassFromLast();
+
+        void clearPasses();
+        void checkPasses();
+
+        bool doesPassExist();
+
+        void printPass(int pass_number);
+
         void waitForPass();
         void runSatelliteTracking();
 
         int handleCommand();
+        int handleCommand(int timeout);
 
         time_t getActualTime();
+        time_t fakeGetActualTime(long long offset);
+
+        void storeInDB();
+
+        PassesVec       _passes;
 
     private:
         void initializeOrbitObject(OrbitSimulator *orb,
                 float minimum_elevation, float dl_frequency, float ul_frequency,
                 char *tle_path, int timestep, float lat_gs, float lon_gs, float h_gs);
 
-        OrbitSimulator *_orb;
-        Motor_Angles *_gs_angles;
-        RotorControl *_rot;
+        OrbitSimulator  *_orb;
+        RotorControl    *_rot;
+
+        PGconn          *_pgconn;
 
         socket_config_t _server_conf;
 

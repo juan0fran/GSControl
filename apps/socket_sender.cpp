@@ -31,7 +31,7 @@ int main (void)
     cmd5.cmd_id = CMD_ID_CHANGE_OP_PARMS;
 
     /* sending cmd1 */
-    cmd1.enable_flag = ENABLE_ROTOR;
+    cmd1.enable_flag = DISABLE_ROTOR;
 
     memcpy(client.buffer, &cmd1, sizeof(cmd1));
     client.len = sizeof(cmd1);

@@ -4,20 +4,28 @@
 #include <vector>
 #include "orbit_simulator.h"
 
-typedef struct NewAngles{
-  propagation_output_t propagation;
-  double motor_az;
-  double motor_el;
-}NewAngles;
+struct PassInformation{
+    propagation_output_t propagation;
+    double motor_az;
+    double motor_el;
+    bool operator==(const PassInformation& pass) const
+    {
+        return (pass.propagation.timestamp == propagation.timestamp);
+    }
+};
 
-typedef std::vector<NewAngles> NewAnglesVec;
+typedef std::vector<PassInformation> PassInformationVec;
+typedef std::vector<PassInformationVec> PassesVec;
 
 class Motor_Angles {
     public:
         Motor_Angles();
         void computeMotorAngle(SimulatorResultsVec Results);
         void clear();
-        NewAnglesVec _Angles;
+
+    protected:
+        PassInformationVec _pass;
+
     private:
 
 };

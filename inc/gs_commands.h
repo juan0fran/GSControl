@@ -18,8 +18,8 @@ typedef struct __attribute__ ((__packed__)) disable_enable_rotor_cmd {
 typedef struct __attribute__ ((__packed__)) set_manual_position_cmd {
     uint8_t cmd_id;
     /* just to identify which command I am */
-    float position_az;
-    float position_el;
+    float az;
+    float el;
 }set_manual_position_cmd;
 
 typedef struct __attribute__ ((__packed__)) change_transceiver_cmd {

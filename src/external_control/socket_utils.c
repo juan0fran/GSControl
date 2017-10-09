@@ -55,13 +55,46 @@ su_errno_e socket_write(socket_handler_t *s)
     }
 }
 
-su_errno_e socket_read(socket_handler_t *s)
+static int timeout_on_fd(int fd, int timeout_ms)
 {
-    // timeout structure passed into select
     struct timeval tv;
     // fd_set passed into select
     fd_set fds;
     int control_ret;
+    if (timeout_ms >= 1000) {
+        tv.tv_sec = timeout_ms / 1000;
+        tv.tv_usec = (timeout_ms % 1000) * 1000;
+    }else{
+        tv.tv_sec = 0;
+        tv.tv_usec = timeout_ms * 1000;
+    }
+    // Zero out the fd_set - make sure it's pristine
+    FD_ZERO(&fds);
+    // Set the FD that we want to read
+    FD_SET(fd, &fds);
+    // select takes the last file descriptor value + 1 in the fdset to check,
+    // the fdset for reads, writes, and errors.  We are only passing in reads.
+    // the last parameter is the timeout.  select will return if an FD is ready or
+    // the timeout has occurred
+    if ( (control_ret = select(fd+1, &fds, NULL, NULL, &tv) ) == -1) {
+        return SU_IO_ERROR;
+    }
+    // return 0 if fd is not ready to be read.
+    if ( ( control_ret = FD_ISSET(fd, &fds) ) > 0 ) {
+        /* Something to read! */
+        return SU_NO_ERROR;
+    }else {
+        if (control_ret == 0) {
+            return SU_TIMEOUT;
+        }else {
+            return SU_IO_ERROR;
+        }
+    }
+}
+
+su_errno_e socket_read(socket_handler_t *s)
+{
+    int ret;
     // Set up the timeout.  here we can wait for 1 second
     check_exp_len(s);
     if (s->timeout_ms == -1) {
@@ -72,39 +105,17 @@ su_errno_e socket_read(socket_handler_t *s)
             return SU_NO_ERROR;
         }
     }else {
-        if (s->timeout_ms >= 1000) {
-            tv.tv_sec = s->timeout_ms / 1000;
-            tv.tv_usec = (s->timeout_ms % 1000) * 1000;
-        }else{
-            tv.tv_sec = 0;
-            tv.tv_usec = s->timeout_ms * 1000;
-        }
-        // Zero out the fd_set - make sure it's pristine
-        FD_ZERO(&fds);
-        // Set the FD that we want to read
-        FD_SET(s->fd, &fds);
-        // select takes the last file descriptor value + 1 in the fdset to check,
-        // the fdset for reads, writes, and errors.  We are only passing in reads.
-        // the last parameter is the timeout.  select will return if an FD is ready or
-        // the timeout has occurred
-        if ( (control_ret = select(s->fd+1, &fds, NULL, NULL, &tv) ) == -1) {
-            return SU_IO_ERROR;
-        }
-        // return 0 if fd is not ready to be read.
-        if ( ( control_ret = FD_ISSET(s->fd, &fds) ) > 0 ) {
-            /* Something to read! */
+        ret = timeout_on_fd(s->fd, s->timeout_ms);
+        if (ret == SU_NO_ERROR) {
             s->len = read(s->fd, s->buffer, s->expected_len);
-            if (s->len <= 0) {
-                return SU_IO_ERROR;
-            }else{
-                return SU_NO_ERROR;
-            }
+            return SU_NO_ERROR;
         }else {
-            if (control_ret == 0) {
-                return SU_TIMEOUT;
-            }else {
-                return SU_IO_ERROR;
-            }
+            return ret;
+        }
+        if (s->len <= 0) {
+            return SU_IO_ERROR;
+        }else{
+            return SU_NO_ERROR;
         }
     }
 }
@@ -138,19 +149,36 @@ su_errno_e client_socket_init(socket_config_t *conf, socket_handler_t *s)
 
 su_errno_e server_socket_new_client(server_handler_t *server, socket_handler_t *client)
 {
+    int ret;
     socklen_t clilen;
     struct sockaddr_in cli_addr;
     clilen = sizeof(cli_addr);
     /* Something to read! */
-    fcntl(server->fd, F_SETFL, O_NONBLOCK);
-    client->fd = accept(server->fd, (struct sockaddr *) &cli_addr, &clilen);
-    if (client->fd > 0) {
-        osx_block_sigpipe(client->fd);
-        return SU_NO_ERROR;
-    }else if (client->fd == 0) {
-        return SU_TIMEOUT;
-    }else{
-        return SU_IO_ERROR;
+    if (client->timeout_ms == -1) {
+        client->fd = accept(server->fd, (struct sockaddr *) &cli_addr, &clilen);
+        if (client->fd > 0) {
+            osx_block_sigpipe(client->fd);
+            return SU_NO_ERROR;
+        }else if (client->fd == 0) {
+            return SU_TIMEOUT;
+        }else{
+            return SU_IO_ERROR;
+        }
+    }else {
+        ret = timeout_on_fd(server->fd, client->timeout_ms);
+        if (ret == SU_NO_ERROR) {
+            client->fd = accept(server->fd, (struct sockaddr *) &cli_addr, &clilen);
+            if (client->fd > 0) {
+                osx_block_sigpipe(client->fd);
+                return SU_NO_ERROR;
+            }else if (client->fd == 0) {
+                return SU_TIMEOUT;
+            }else{
+                return SU_IO_ERROR;
+            }
+        }else {
+            return ret;
+        }
     }
 }
 

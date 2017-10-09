@@ -7,6 +7,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/orbit_propagator/external)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/inc)
 include_directories(/usr/include)
 
+set (CMAKE_CXX_STANDARD 11)
+
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib/${CMAKE_BUILD_TYPE})
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/apps/${CMAKE_BUILD_TYPE})
 MARK_AS_ADVANCED(

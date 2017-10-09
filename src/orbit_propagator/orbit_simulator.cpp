@@ -2,7 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <locale>
-
+#include <thread>
 #include "orbit_simulator.h"
 
 OrbitSimulator::OrbitSimulator()
@@ -46,25 +46,6 @@ void OrbitSimulator::SetTimestep(unsigned long timestep)
     _sim_timestep = timestep;
 }
 
-void OrbitSimulator::SetSimulationInterval(unsigned long start, unsigned long end)
-{
-    _sim_start          = start;
-    _sim_end            = end;
-    _npoints_forecast   = ((end-start) / _sim_timestep);
-    _orbit_conf.station.timestamp = start;
-    _orbit_conf.platform.timestamp = start;
-}
-
-void OrbitSimulator::SetSimulationInterval(unsigned long start, unsigned long end, unsigned int timestep)
-{
-    _sim_start          = start;
-    _sim_end            = end;
-    _sim_timestep       = timestep;
-    _npoints_forecast   = ((end-start) / _sim_timestep);
-    _orbit_conf.station.timestamp = start;
-    _orbit_conf.platform.timestamp = start;
-}
-
 std::string OrbitSimulator::GetResults()
 {
     std::stringstream str;
@@ -105,11 +86,12 @@ unsigned long OrbitSimulator::getLastFoundPassEnd()
 int OrbitSimulator::findNextPass(unsigned long start_timestamp)
 {
     bool passFound = false;
+    bool passfineFound = false;
     SimulatorResults single_result;
-    SetSimulationInterval(start_timestamp, start_timestamp + 86400);
+    memset(&single_result, 0, sizeof(single_result));
     Results.clear();
-    Results.reserve(_npoints_forecast);
-    for (unsigned long t = _sim_start; t < _sim_end; t = t + _sim_timestep) {
+    unsigned long t = start_timestamp;
+    while (t < (start_timestamp + 86400)) {
         _orbit_conf.station.timestamp   = t;
         _orbit_conf.platform.timestamp  = t;
         if (propagate_and_get_visibility(&_orbit_conf, &single_result.propagation) == -1 ) {
@@ -122,22 +104,35 @@ int OrbitSimulator::findNextPass(unsigned long start_timestamp)
                 _last_pass_end = t;
                 if ((_last_pass_end - _last_pass_start) < 1) {
                     Results.clear();
-                    Results.shrink_to_fit();
-                    SetSimulationInterval(t+_sim_timestep, t+_sim_timestep + 86400);
                     passFound = false;
+                    passfineFound = false;
                     continue;
                 }
-                Results.shrink_to_fit();
                 return 0;
             }
-        }else {
-            if (passFound == false) {
-                _last_pass_start = t;
-                passFound = true;
+            /* look in 60 seconds step in case of not pass found yet
+               otherwise look it in passes of 1 second
+            */
+            if (passfineFound == true) {
+                t = t + 1;
+            }else {
+                t = t + 60;
             }
-            setDistance(single_result.propagation.rel_dist);
-            fillStructure(&single_result.link);
-            Results.push_back(single_result);
+        }else {
+            if (passfineFound == false) {
+                passfineFound = true;
+                t = t - 60;
+                continue;
+            }else {
+                if (passFound == false) {
+                    _last_pass_start = t;
+                    passFound = true;
+                }
+                //setDistance(single_result.propagation.rel_dist);
+                //fillStructure(&single_result.link);
+                Results.push_back(single_result);
+                t = t + _sim_timestep;
+            }
         }
     }
     return 0;
