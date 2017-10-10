@@ -8,7 +8,7 @@
  *
  *	Released under the terms of the GNU LGPL V3
  *	http://www.gnu.org/licenses/lgpl-3.0.html
- *	
+ *
  *	This software is distributed in the hope that it will be useful,
  *	but WITHOUT ANY WARRANTY; without even the implied warranty of
  *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -134,31 +134,33 @@ void sincos(double x, double *s, double *c); /* declared where? */
  * (SQR is used badly here: do_cal.c, glat2lat.c, satpos.c, vmath.h).
  */
 
-static INLINE int       NINT(double  a) { return (int)(a > 0 ? a+0.5 : a-0.5); }
-static INLINE long      NLONG(double a) { return (long)(a > 0 ? a+0.5 : a-0.5); }
+INLINE int       NINT(double  a);
+INLINE long      NLONG(double a);
 
-static INLINE double    DSQR(double a) { return(a*a); }
-static INLINE float     FSQR(float a)  { return(a*a); }
-static INLINE int       ISQR(int   a)  { return(a*a); }
+INLINE double    DSQR(double a);
+INLINE float     FSQR(float a);
+INLINE int       ISQR(int   a);
 
-static INLINE double    DCUBE(double a) { return(a*a*a); }
-static INLINE float     FCUBE(float a)  { return(a*a*a); }
-static INLINE int       ICUBE(int   a)  { return(a*a*a); }
+INLINE double    DCUBE(double a);
+INLINE float     FCUBE(float a);
+INLINE int       ICUBE(int   a);
 
-static INLINE double    DPOW4(double a) { a*=a; return(a*a); }
-static INLINE float     FPOW4(float a)  { a*=a; return(a*a); }
-static INLINE int       IPOW4(int   a)  { a*=a; return(a*a); }
+INLINE double    DPOW4(double a);
+INLINE float     FPOW4(float a);
+INLINE int       IPOW4(int   a);
 
-static INLINE double    DMAX(double a,double b) { if (a>b) return  a; else return b; }
-static INLINE float     FMAX(float a, float b)  { if (a>b) return  a; else return b; }
-static INLINE int       IMAX(int   a, int   b)  { if (a>b) return  a; else return b; }
+INLINE double    DMAX(double a,double b);
+INLINE float     FMAX(float a, float b);
+INLINE int       IMAX(int   a, int   b);
 
-static INLINE double    DMIN(double a,double b) { if (a<b) return  a; else return b; }
-static INLINE float     FMIN(float a, float b)  { if (a<b) return  a; else return b; }
-static INLINE int       IMIN(int   a, int   b)  { if (a<b) return  a; else return b; }
+INLINE double    DMIN(double a,double b);
+INLINE float     FMIN(float a, float b);
+INLINE int       IMIN(int   a, int   b);
 
-static INLINE double    MOD2PI(double a) { a=fmod(a, TWOPI); return a < 0.0 ? a+TWOPI : a; }
-static INLINE double    MOD360(double a) { a=fmod(a, 360.0); return a < 0.0 ? a+360.0 : a; }
+INLINE double    MOD2PI(double a);
+INLINE double    MOD360(double a);
+
+
 
 /*
  * Unless you have higher than default optimisation the Sun compiler

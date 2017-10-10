@@ -9,6 +9,15 @@
 #define ENABLE_ROTOR                    1
 #define DISABLE_ROTOR                   0
 
+#define OP_CHANGE_TLE                   (1<<0)
+#define OP_CHANGE_MIN_ELEV              (1<<1)
+#define OP_CHANGE_FREQ                  (1<<2)
+#define OP_CHANGE_TIMESTEP              (1<<3)
+#define OP_CHANGE_GS                    (1<<4)
+
+#define HANDLE_COMMAND_TIMEOUT          60
+#define SATELLITE_MIN_WAIT_TIME         120
+
 typedef struct __attribute__ ((__packed__)) disable_enable_rotor_cmd {
     uint8_t cmd_id;
     /* just to identify which command I am */
@@ -36,11 +45,14 @@ typedef struct __attribute__ ((__packed__)) change_polarization_cmd {
 
 typedef struct __attribute__ ((__packed__)) change_op_parameters_cmd {
     uint8_t cmd_id;
+    uint8_t change_flag;
     /* just to identify which command I am */
     char    full_tle_file[256];
     float   minimum_elevation;
-    float   ul_frequency;
-    float   dl_frequency;
+    struct {
+        float ul;
+        float dl;
+    }frequencies;
     int     simulation_timestep;
     struct {
         float lat;

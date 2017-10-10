@@ -33,19 +33,18 @@ int main(void)
     GsControl gs;
     /* Object initialization */
     //gs.setMinElevation(5.0);
-    gs.setFrequencies(145.25e6, 145.25e6);
+    gs.setFrequencies(437.25e6, 437.25e6);
     gs.setTimestep(5);
     gs.setLocation(41.0, 2.11, 200.0);
     gs.setTLE(tle_raw);
+    gs.setMaxPropagations(5);
     gs.loadParms();
     while (1) {
         /* propagate for the next pass from now */
-        //gs.clearPasses();
         gs.checkPasses();
-        if (gs._passes.size() < 2) {
+        while(gs.isPassesFull() == false) {
+            std::cout << gs._passes.size() << " passes available" << std::endl;
             gs.addNextPassFromLast();
-            gs.addNextPassFromLast();
-            gs.checkPasses();
         }
         /* print it */
         std::cout << gs._passes.size() << " passes available" << std::endl;
@@ -53,6 +52,9 @@ int main(void)
         /* track the current pass if available */
         gs.runSatelliteTracking();
         /* look for commands during 10 seconds and then propagate&make the stuff again */
-        gs.handleCommand(5);
+        /* sleep for 1 minute to wait for any possible command */
+        /* propagate again the orbit... */
+        gs.handleCommand(HANDLE_COMMAND_TIMEOUT);
+        /* at least, antennas pointing is done 60 seconds in advance... */
     }
 }

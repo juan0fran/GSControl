@@ -37,6 +37,7 @@ class GsControl : Motor_Angles{
         void setTLE(char *path);
         void setTimestep(int times);
         void setLocation(float lat_gs, float lon_gs, float h_gs);
+        void setMaxPropagations(int max);
 
         void loadParms();
 
@@ -56,8 +57,11 @@ class GsControl : Motor_Angles{
         int handleCommand();
         int handleCommand(int timeout);
 
+        bool isPassesFull();
+
         time_t getActualTime();
         time_t fakeGetActualTime(long long offset);
+        std::string printReadble(time_t t);
 
         void storeInDB();
 
@@ -72,6 +76,8 @@ class GsControl : Motor_Angles{
         RotorControl    *_rot;
 
         PGconn          *_pgconn;
+
+        int             _max_propagations;
 
         socket_config_t _server_conf;
 

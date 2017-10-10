@@ -7,15 +7,21 @@ GsControl::GsControl()
     _orb = new OrbitSimulator;
     _rot = new RotorControl((char *) "192.168.0.204", 8888);
     _server_conf.server.port = 55001;
-    //server_socket_init(&_server_conf, &_server_fd);
+    server_socket_init(&_server_conf, &_server_fd);
 
     _connected_user = false;
     _error_in_op = false;
 
-    _rotors_enabled = false;
+    _rotors_enabled = true;
 
     _min_el = 5.0;
     _timestep = 1;
+    _max_propagations = 1;
+}
+
+void GsControl::setMaxPropagations(int max)
+{
+    _max_propagations = max;
 }
 
 void GsControl::setMinElevation(float el)
@@ -53,12 +59,21 @@ void GsControl::loadParms()
 
 time_t GsControl::fakeGetActualTime(long long offset)
 {
-    return ( (std::chrono::system_clock::to_time_t (std::chrono::system_clock::now())) + offset);
+    return ((std::chrono::system_clock::to_time_t (std::chrono::system_clock::now())) + offset);
 }
 
 time_t GsControl::getActualTime()
 {
     return (std::chrono::system_clock::to_time_t (std::chrono::system_clock::now()));
+}
+
+std::string GsControl::printReadble(time_t t)
+{
+    struct tm tm;
+    char date[20];
+    localtime_r(&t, &tm);
+    strftime(date, sizeof(date), "%Y-%m-%d", &tm);
+    return (std::string(date));
 }
 
 void GsControl::clearPasses()
@@ -69,7 +84,6 @@ void GsControl::clearPasses()
 void GsControl::addNextPassFrom(TIMESTAMP_T t)
 {
     /* i have to take a look if the pass exists before "adding" it */
-    int ret;
     if (_orb->findNextPass(t) == -1) {
         _error_in_op = true;
         std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -79,26 +93,34 @@ void GsControl::addNextPassFrom(TIMESTAMP_T t)
         computeMotorAngle(_orb->Results);
         if (!doesPassExist()) {
             _passes.push_back(_pass);
-            std::cout << "New pass added" << std::endl;
-        }else {
-            std::cout << "The pass exists" << std::endl;
         }
+        //printPass(_passes.size());
     }
 }
 
 void GsControl::addNextPassFromLast()
 {
     if (_passes.size() > 0) {
-        addNextPassFrom((_passes.back().back().propagation.timestamp) + 1);
+        if ((size_t)_passes.size() < (size_t)_max_propagations) {
+            /* just start the simulation i.e. 30 minutes after */
+            addNextPassFrom((_passes.back().back().propagation.timestamp) + (30*60));
+        }
     }else {
         addNextPassFrom(getActualTime());
     }
 }
 
+bool GsControl::isPassesFull()
+{
+    return ((size_t)_max_propagations == (size_t)_passes.size());
+}
+
 bool GsControl::doesPassExist()
 {
+    /*  */
     for (PassesVec::iterator it = _passes.begin(); it != _passes.end(); it++) {
-        if (equal(it->begin(), it->end(), _pass.begin())) {
+        if ((_pass.front() <= it->back())) {
+            /* in case that the calculated pass is, in time, lower any calculated, just erase */
             return true;
         }
     }
@@ -107,10 +129,9 @@ bool GsControl::doesPassExist()
 
 void GsControl::checkPasses()
 {
-    TIMESTAMP_T t;
     /* checks if the pass is on the "past" */
-    for (PassesVec::iterator it = _passes.begin(); it != _passes.end();) {
-        if (it->back().propagation.timestamp < getActualTime()) {
+    for (PassesVec::iterator it = _passes.begin(); it != _passes.end(); ) {
+        if ((time_t) it->back().propagation.timestamp < (time_t) getActualTime()) {
             /* remove myself */
             it = _passes.erase(it);
         }else {
@@ -121,7 +142,7 @@ void GsControl::checkPasses()
 
 void GsControl::printPass(int pass_number)
 {
-    if (pass_number > _passes.size()) {
+    if ((size_t)pass_number > (size_t)_passes.size()) {
         std::cout << "Bad pass selected: " << pass_number << " from " << _passes.size() << std::endl;
     }
     for (PassInformationVec::iterator it = _passes[pass_number-1].begin(); it != _passes[pass_number-1].end(); it++) {
@@ -197,61 +218,54 @@ void GsControl::runSatelliteTracking()
     /* we could make a move 1 of every X timestamps */
     time_t timer;
     if (!_error_in_op) {
-        if (_passes.size() == 0) {
-            goto tracking_end;
-        }
-        timer = getActualTime();
-        if (timer < _passes.front().front().propagation.timestamp) {
-            std::cout   << "Still " << (_passes.front().front().propagation.timestamp - timer)
-                        << " seconds to move the antennas" << std::endl;
-             /* if more than 120 secs. for the satellite pass... */
-            if ((_passes.front().front().propagation.timestamp - timer) > 120) {
-                /* and outside here we will have to sleep for a while ... */
-                goto tracking_end;
-            }
-        }
-        std::cout << "Moving to initial position -->";
-        std::cout << " AZ: " << _passes.front().front().propagation.az;
-        std::cout << " EL: " << _passes.front().front().propagation.el;
-        std::cout << " Mot_AZ: " << _passes.front().front().motor_az;
-        std::cout << " Mot_EL: " << _passes.front().front().motor_el << std::endl;
-
-        if (_rotors_enabled) {
-            #ifdef ROTORS_BYPASS
-            std::cout << "Fake move rotors to: " << _passes.front().front().motor_az;
-            std::cout << ", " << _passes.front().front().motor_el << std::endl;
-            #else
-            _rot->setRotorPosition(_passes.front().front().motor_az, _passes.front().front().motor_el);
-            #endif
-        }
-        for (PassInformationVec::iterator it = (_passes.front().begin()+1); it != _passes.front().end(); it++) {
-            /* we want to be there in advande, 1 second in advance... */
-            while(getActualTime() < (it->propagation.timestamp-1)) {
-                //std::cout << (it->propagation.timestamp - getActualTime()) << " secs. to move the antennas..." << std::endl;
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                if (handleCommand() == RELOAD_GS) {
-                    /* sudamendi */
-                    goto tracking_end;
+        if (_passes.size() != 0) {
+            timer = getActualTime();
+            if (timer < (time_t) _passes.front().front().propagation.timestamp) {
+                std::cout   << "Still " << ((_passes.front().front().propagation.timestamp - timer)/60)
+                            << " minutes to move the antennas" << std::endl;
+                 /* if more than 120 secs. for the satellite pass... */
+                if ((_passes.front().front().propagation.timestamp - timer) > SATELLITE_MIN_WAIT_TIME) {
+                    /* and outside here we will have to sleep for a while ... */
+                    return;
                 }
             }
-            /* if it is a past event, do not send a rotor move... */
-            if ((getActualTime() - it->propagation.timestamp) < 5) {
-                std::cout << "Moving the antennas to AZ: " << it->propagation.az << " EL: " << it->propagation.el;
-                std::cout << " Mot_AZ: " << it->motor_az << " Mot_EL: " << it->motor_el << std::endl;
-                if (_rotors_enabled) {
-                    #ifdef ROTORS_BYPASS
-                    std::cout << "Fake move rotors to: " << it->motor_az;
-                    std::cout << ", " << it->motor_el << std::endl;
-                    #else
-                    _rot->setRotorPosition(it->motor_az, it->motor_el);
-                    #endif
+            if (_rotors_enabled) {
+                #ifdef ROTORS_BYPASS
+                std::cout << "Fake move rotors to: " << _passes.front().front().motor_az;
+                std::cout << ", " << _passes.front().front().motor_el << std::endl;
+                std::cout   << "Fake Doppler correction DL: "
+                            << _dl_freq+_passes.front().front().propagation.dl_doppler
+                            << " UL: " << _ul_freq+_passes.front().front().propagation.ul_doppler << std::endl;
+                #else
+                _rot->setRotorPosition(_passes.front().front().motor_az, _passes.front().front().motor_el);
+                #endif
+            }
+            for (PassInformationVec::iterator it = (_passes.front().begin()+1); it != _passes.front().end(); it++) {
+                /* we want to be there in advande, 1 second in advance... */
+                while( (getActualTime()+1) < (time_t) (it->propagation.timestamp)) {
+                    //std::cout << ((it->propagation.timestamp-1) - getActualTime()) << " secs. to move the antennas..." << std::endl;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    if (handleCommand() == RELOAD_GS) {
+                        /* sudamendi */
+                        return;
+                    }
+                }
+                /* if it is a past event, do not send a rotor move... */
+                if (std::fabs((int)(getActualTime() - it->propagation.timestamp)) < 5) {
+                    if (_rotors_enabled) {
+                        #ifdef ROTORS_BYPASS
+                        std::cout << "Fake move rotors to: " << it->motor_az;
+                        std::cout << ", " << it->motor_el << std::endl;
+                        std::cout   << "Fake Doppler correction DL: "
+                                    << (_dl_freq+it->propagation.dl_doppler)/1e6
+                                    << " MHz; UL: " << (_ul_freq+it->propagation.ul_doppler)/1e6 << " MHz" << std::endl;
+                        #else
+                        _rot->setRotorPosition(it->motor_az, it->motor_el);
+                        #endif
+                    }
                 }
             }
         }
-        /* The pass has ended */
-        /* clear the passes */
-        tracking_end:
-        return;
     }
 }
 
@@ -262,8 +276,6 @@ int GsControl::handleCommand(int timeout)
     change_transceiver_cmd      *cmd_trx;
     change_polarization_cmd     *cmd_pol;
     change_op_parameters_cmd    *cmd_op;
-    char cmd[128];
-    char aux[128];
     su_errno_e err;
     /* check if there is a connected user */
     if (!_connected_user) {
@@ -277,7 +289,9 @@ int GsControl::handleCommand(int timeout)
     if (_connected_user) {
         _client.timeout_ms = timeout*1000; /* just poll if there is data */
         memset(_client.buffer, 0, sizeof(_client.buffer));
-        if ((err = socket_read(&_client)) == SU_NO_ERROR) {
+        err = socket_read(&_client);
+        if (err == SU_NO_ERROR && _client.len > 0) {
+            std::cout << "Command received: " << (int) _client.buffer[0] << std::endl;
             switch(_client.buffer[0]) {
                 case CMD_ID_DISABLE_ENABLE_ROTOR:
                     cmd_enable_rot = (disable_enable_rotor_cmd *) _client.buffer;
@@ -289,7 +303,7 @@ int GsControl::handleCommand(int timeout)
                         std::cout << "Rotors Disabled" << std::endl;
                         _rotors_enabled = false;
                     }
-                break;
+                    break;
                 case CMD_ID_SET_MANUAL_POSITION:
                     cmd_manual = (set_manual_position_cmd *) _client.buffer;
                     _rotors_enabled = false;
@@ -306,13 +320,34 @@ int GsControl::handleCommand(int timeout)
 
                     break;
                 case CMD_ID_CHANGE_OP_PARMS:
-
+                    cmd_op = (change_op_parameters_cmd *) _client.buffer;
+                    if (cmd_op->change_flag & OP_CHANGE_TLE) {
+                        setTLE(cmd_op->full_tle_file);
+                        std::cout << "New TLE: " << std::endl << cmd_op->full_tle_file << std::endl;
+                    }
+                    if (cmd_op->change_flag & OP_CHANGE_MIN_ELEV) {
+                        setMinElevation(cmd_op->minimum_elevation);
+                    }
+                    if (cmd_op->change_flag & OP_CHANGE_FREQ) {
+                        setFrequencies(cmd_op->frequencies.dl, cmd_op->frequencies.ul);
+                    }
+                    if (cmd_op->change_flag & OP_CHANGE_TIMESTEP) {
+                        setTimestep(cmd_op->simulation_timestep);
+                    }
+                    if (cmd_op->change_flag & OP_CHANGE_GS) {
+                        setLocation(cmd_op->gs.lat, cmd_op->gs.lon, cmd_op->gs.h);
+                    }
+                    //saveParms();
+                    loadParms();
+                    _passes.clear();
+                    return RELOAD_GS;
                     break;
                 default:
                     std::cout << "Bad command input" << std::endl;
                     break;
             }
-        }else if (err == SU_IO_ERROR) {
+        }else if (err == SU_IO_ERROR || _client.len == 0) {
+            close(_client.fd);
             _connected_user = false;
         }
     }

@@ -10,8 +10,8 @@ void Motor_Angles::clear()
 
 void Motor_Angles::computeMotorAngle(SimulatorResultsVec Results)
 {
-    clear();
     PassInformation single_angle;
+    clear();
     if( ((Results[0].propagation.az < Results[1].propagation.az) &&
          (Results[0].propagation.az > Results[Results.size()-1].propagation.az)) ||
         ((Results[0].propagation.az > Results[1].propagation.az) &&

@@ -15,9 +15,9 @@ extern "C" {
 #ifndef    DEBUG_LEVEL
 #define DEBUG_LEVEL 0
 #endif
-#define _api_printf(level, x...) do{ if(level >= DEBUG_LEVEL) printf(x); }while(0);
+#define _api_printf(level, args...) do{ if(level >= DEBUG_LEVEL) printf(args); }while(0);
 #else
-#define _api_printf(level, x...) do{ }while(0);
+#define _api_printf(level, args...) do{ }while(0);
 #endif
 
 #define NORMAL_BUFFER_SIZE          256
