@@ -14,47 +14,122 @@ GsControl::GsControl()
 
     _rotors_enabled = true;
 
-    _min_el = 5.0;
-    _timestep = 1;
-    _max_propagations = 1;
+    op_conf_s._min_el = 5.0;
+    op_conf_s._timestep = 5;
+    op_conf_s._max_propagations = 1;
+    op_conf_s._pre_propagation_offset_seconds = 0;
+}
+
+void GsControl::get_config(std::string path)
+{
+    YAML::Node node;
+    std::ifstream file(path);
+    if (file.is_open()) {
+        std::string file_str = std::string( (std::istreambuf_iterator<char>(file)),
+                                            (std::istreambuf_iterator<char>()));
+        file.close();
+        /* now just load it! */
+        node = YAML::Load(file_str.c_str());
+        if (node[UL_FREQ_KEY]) {
+            std::cout << "Old UL freq: " << op_conf_s._ul_freq << std::endl;
+            op_conf_s._ul_freq = node[UL_FREQ_KEY].as<double>();
+            std::cout << "New UL freq: " << op_conf_s._ul_freq << std::endl;
+        }
+        if (node[DL_FREQ_KEY]) {
+            std::cout << "Old DL freq: " << op_conf_s._dl_freq << std::endl;
+            op_conf_s._dl_freq = node[DL_FREQ_KEY].as<double>();
+            std::cout << "New DL freq: " << op_conf_s._dl_freq << std::endl;
+        }
+        if (node[TLE_KEY]) {
+            std::cout << "Old TLE: " << std::endl << op_conf_s._tle_string << std::endl;
+            strcpy(op_conf_s._tle_string, node["tle"].as<std::string>().c_str());
+            std::cout << "New TLE: " << std::endl << op_conf_s._tle_string << std::endl;
+        }
+        if (node[GS_KEY]) {
+            std::cout << "Old GS: " << op_conf_s._gs.lat << " "
+                                    << op_conf_s._gs.lon << " "
+                                    << op_conf_s._gs.h << std::endl;
+
+            /* auto-indent fix */
+            if (node[GS_KEY].IsSequence() && node[GS_KEY].size() == 3) {
+                op_conf_s._gs.lat = node[GS_KEY][0].as<double>();
+                op_conf_s._gs.lon = node[GS_KEY][1].as<double>();
+                op_conf_s._gs.h = node[GS_KEY][2].as<double>();
+
+                std::cout << "New GS: " << op_conf_s._gs.lat << " "
+                                        << op_conf_s._gs.lon << " "
+                                        << op_conf_s._gs.h << std::endl;
+            }
+        }
+        if (node[MIN_EL_KEY]) {
+            std::cout << "Old min elevation: " << op_conf_s._min_el << std::endl;
+            op_conf_s._min_el = node[MIN_EL_KEY].as<double>();
+            std::cout << "New min elevation: " << op_conf_s._min_el << std::endl;
+        }
+        if (node[PRE_PROP_KEY]) {
+            std::cout << "Old pre-prop offset elevation: " << op_conf_s._pre_propagation_offset_seconds << std::endl;
+            op_conf_s._pre_propagation_offset_seconds = node[PRE_PROP_KEY].as<int>();
+            std::cout << "New pre-prop offset elevation: " << op_conf_s._pre_propagation_offset_seconds << std::endl;
+        }
+        if (node[TIMESTEP_KEY]) {
+            std::cout << "Old timestep: " << op_conf_s._timestep << std::endl;
+            op_conf_s._timestep = node[TIMESTEP_KEY].as<int>();
+            std::cout << "New timestep: " << op_conf_s._timestep << std::endl;
+        }
+        if (node[PROP_AMOUNT]) {
+            std::cout << "Old max. propagations: " << op_conf_s._max_propagations << std::endl;
+            op_conf_s._max_propagations = node[PROP_AMOUNT].as<int>();
+            std::cout << "New max. propagations: " << op_conf_s._max_propagations << std::endl;
+        }
+    }
+}
+
+void GsControl::setTimePointingOffset(time_t offset)
+{
+    op_conf_s._pre_propagation_offset_seconds = offset;
 }
 
 void GsControl::setMaxPropagations(int max)
 {
-    _max_propagations = max;
+    op_conf_s._max_propagations = max;
 }
 
 void GsControl::setMinElevation(float el)
 {
-    _min_el = el;
+    op_conf_s._min_el = el;
 }
 
 void GsControl::setFrequencies(float dl, float ul)
 {
-    _dl_freq = dl;
-    _ul_freq = ul;
+    op_conf_s._dl_freq = dl;
+    op_conf_s._ul_freq = ul;
+}
+
+void GsControl::setTLE(std::string path)
+{
+    strncpy(op_conf_s._tle_string, path.c_str(), path.length());
 }
 
 void GsControl::setTLE(char *path)
 {
-    strcpy(_tle_path, path);
+    strcpy(op_conf_s._tle_string, path);
 }
 
 void GsControl::setTimestep(int times)
 {
-    _timestep = times;
+    op_conf_s._timestep = times;
 }
 
 void GsControl::setLocation(float lat_gs, float lon_gs, float h_gs)
 {
-    _gs.lat = lat_gs;
-    _gs.lon = lon_gs;
-    _gs.h   = h_gs;
+    op_conf_s._gs.lat = lat_gs;
+    op_conf_s._gs.lon = lon_gs;
+    op_conf_s._gs.h   = h_gs;
 }
 
 void GsControl::loadParms()
 {
-    initializeOrbitObject(_orb, _min_el, _dl_freq, _ul_freq, _tle_path, _timestep, _gs.lat, _gs.lon, _gs.h);
+    initializeOrbitObject(_orb);
 }
 
 time_t GsControl::fakeGetActualTime(long long offset)
@@ -101,7 +176,7 @@ void GsControl::addNextPassFrom(TIMESTAMP_T t)
 void GsControl::addNextPassFromLast()
 {
     if (_passes.size() > 0) {
-        if ((size_t)_passes.size() < (size_t)_max_propagations) {
+        if ((size_t)_passes.size() < (size_t)op_conf_s._max_propagations) {
             /* just start the simulation i.e. 30 minutes after */
             addNextPassFrom((_passes.back().back().propagation.timestamp) + (30*60));
         }
@@ -112,7 +187,7 @@ void GsControl::addNextPassFromLast()
 
 bool GsControl::isPassesFull()
 {
-    return ((size_t)_max_propagations == (size_t)_passes.size());
+    return ((size_t)op_conf_s._max_propagations == (size_t)_passes.size());
 }
 
 bool GsControl::doesPassExist()
@@ -200,16 +275,14 @@ void GsControl::storeInDB()
     #endif
 }
 
-void GsControl::initializeOrbitObject(OrbitSimulator *orb,
-        float minimum_elevation, float dl_frequency, float ul_frequency,
-        char *tle_path, int timestep, float lat_gs, float lon_gs, float h_gs)
+void GsControl::initializeOrbitObject(OrbitSimulator *orb)
 {
     /* start orbit object */
-    orb->SetMinimumElevation(minimum_elevation);
-    orb->SetCommsFreq(dl_frequency, ul_frequency);
-    orb->SetGroundLocation(lat_gs, lon_gs, h_gs);
-    orb->SetSpaceTLEFile(tle_path);
-    orb->SetTimestep(timestep);
+    orb->SetMinimumElevation(op_conf_s._min_el);
+    orb->SetCommsFreq(op_conf_s._dl_freq, op_conf_s._ul_freq);
+    orb->SetGroundLocation(op_conf_s._gs.lat, op_conf_s._gs.lon, op_conf_s._gs.h);
+    orb->SetSpaceTLEFile(op_conf_s._tle_string);
+    orb->SetTimestep(op_conf_s._timestep);
 }
 
 void GsControl::runSatelliteTracking()
@@ -234,16 +307,17 @@ void GsControl::runSatelliteTracking()
                 std::cout << "Fake move rotors to: " << _passes.front().front().motor_az;
                 std::cout << ", " << _passes.front().front().motor_el << std::endl;
                 std::cout   << "Fake Doppler correction DL: "
-                            << _dl_freq+_passes.front().front().propagation.dl_doppler
-                            << " UL: " << _ul_freq+_passes.front().front().propagation.ul_doppler << std::endl;
+                            << op_conf_s._dl_freq+_passes.front().front().propagation.dl_doppler
+                            << " UL: " << op_conf_s._ul_freq+_passes.front().front().propagation.ul_doppler << std::endl;
                 #else
                 _rot->setRotorPosition(_passes.front().front().motor_az, _passes.front().front().motor_el);
                 #endif
             }
             for (PassInformationVec::iterator it = (_passes.front().begin()+1); it != _passes.front().end(); it++) {
                 /* we want to be there in advande, 1 second in advance... */
-                while( (getActualTime()+1) < (time_t) (it->propagation.timestamp)) {
-                    //std::cout << ((it->propagation.timestamp-1) - getActualTime()) << " secs. to move the antennas..." << std::endl;
+                while( (getActualTime()+op_conf_s._pre_propagation_offset_seconds) < (time_t) (it->propagation.timestamp)) {
+                    /* std::cout << ((it->propagation.timestamp-1) - getActualTime())
+                                 << " secs. to move the antennas..." << std::endl; */
                     std::this_thread::sleep_for(std::chrono::milliseconds(100));
                     if (handleCommand() == RELOAD_GS) {
                         /* sudamendi */
@@ -251,14 +325,16 @@ void GsControl::runSatelliteTracking()
                     }
                 }
                 /* if it is a past event, do not send a rotor move... */
-                if (std::fabs((int)(getActualTime() - it->propagation.timestamp)) < 5) {
+                if (std::fabs((int)((getActualTime()+op_conf_s._pre_propagation_offset_seconds) - it->propagation.timestamp))
+                        < op_conf_s._timestep) {
                     if (_rotors_enabled) {
                         #ifdef ROTORS_BYPASS
                         std::cout << "Fake move rotors to: " << it->motor_az;
                         std::cout << ", " << it->motor_el << std::endl;
                         std::cout   << "Fake Doppler correction DL: "
-                                    << (_dl_freq+it->propagation.dl_doppler)/1e6
-                                    << " MHz; UL: " << (_ul_freq+it->propagation.ul_doppler)/1e6 << " MHz" << std::endl;
+                                    << (op_conf_s._dl_freq+it->propagation.dl_doppler)/1e6
+                                    << " MHz; UL: " << (op_conf_s._ul_freq+it->propagation.ul_doppler)/1e6
+                                    << " MHz" << std::endl;
                         #else
                         _rot->setRotorPosition(it->motor_az, it->motor_el);
                         #endif
@@ -321,23 +397,7 @@ int GsControl::handleCommand(int timeout)
                     break;
                 case CMD_ID_CHANGE_OP_PARMS:
                     cmd_op = (change_op_parameters_cmd *) _client.buffer;
-                    if (cmd_op->change_flag & OP_CHANGE_TLE) {
-                        setTLE(cmd_op->full_tle_file);
-                        std::cout << "New TLE: " << std::endl << cmd_op->full_tle_file << std::endl;
-                    }
-                    if (cmd_op->change_flag & OP_CHANGE_MIN_ELEV) {
-                        setMinElevation(cmd_op->minimum_elevation);
-                    }
-                    if (cmd_op->change_flag & OP_CHANGE_FREQ) {
-                        setFrequencies(cmd_op->frequencies.dl, cmd_op->frequencies.ul);
-                    }
-                    if (cmd_op->change_flag & OP_CHANGE_TIMESTEP) {
-                        setTimestep(cmd_op->simulation_timestep);
-                    }
-                    if (cmd_op->change_flag & OP_CHANGE_GS) {
-                        setLocation(cmd_op->gs.lat, cmd_op->gs.lon, cmd_op->gs.h);
-                    }
-                    //saveParms();
+                    get_config(cmd_op->filepath);
                     loadParms();
                     _passes.clear();
                     return RELOAD_GS;

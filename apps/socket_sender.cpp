@@ -56,13 +56,11 @@ int main (void)
     cmd2.az = 120.0;
     cmd2.el = 12.0;
 
-    cmd5.change_flag = OP_CHANGE_TLE;
-    strcpy(cmd5.full_tle_file, tle_raw);
-
+    strcpy(cmd5.filepath, "test.conf");
     memcpy(client.buffer, &cmd5, sizeof(cmd5));
     client.len = sizeof(cmd5);
     socket_write(&client);
-    
+
     close(client.fd);
     return 0;
 }

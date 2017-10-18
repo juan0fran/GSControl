@@ -28,17 +28,35 @@ char tle_raw[] = {  "TEST\n"
                     "1 39166U 13023A   17278.73176791 -.00000052 +00000-0 +00000-0 0  9998\n"
                     "2 39166 055.9189 035.8040 0048654 019.8635 340.3273 02.00564007032172"};
 #endif
-int main(void)
+int main(int argc, char **argv)
 {
+    #if 0
+    if (argc == 2) {
+        /*conf = ConfigFileWrapper((std::string(argv[1])));
+        if (!conf.isValid()) {
+            std::cout << "Bad file format" << std::endl;
+            return -1;
+        }*/
+    }else {
+        std::cout << "Bad call format" << std::endl;
+        return -1;
+    }
+    #endif
+    /* here we can just load the configuration file */
+
     GsControl gs;
     /* Object initialization */
     //gs.setMinElevation(5.0);
     gs.setFrequencies(437.25e6, 437.25e6);
     gs.setTimestep(5);
-    gs.setLocation(41.0, 2.11, 200.0);
+    gs.setLocation(41.5, 2.11, 200.0);
     gs.setTLE(tle_raw);
     gs.setMaxPropagations(5);
+    gs.setTimePointingOffset(3);
+
+    gs.get_config();
     gs.loadParms();
+
     while (1) {
         /* propagate for the next pass from now */
         gs.checkPasses();

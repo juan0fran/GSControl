@@ -43,20 +43,8 @@ typedef struct __attribute__ ((__packed__)) change_polarization_cmd {
     uint8_t polarization_select;
 }change_polarization_cmd;
 
+/* there is a precharged configuration file always with same name... */
 typedef struct __attribute__ ((__packed__)) change_op_parameters_cmd {
     uint8_t cmd_id;
-    uint8_t change_flag;
-    /* just to identify which command I am */
-    char    full_tle_file[256];
-    float   minimum_elevation;
-    struct {
-        float ul;
-        float dl;
-    }frequencies;
-    int     simulation_timestep;
-    struct {
-        float lat;
-        float lon;
-        float h;
-    }gs;
+    char    filepath[256];
 }change_op_parameters_cmd;
