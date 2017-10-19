@@ -106,7 +106,9 @@ class GsControl : Motor_Angles {
 
         PGconn          *_pgconn;
 
-        socket_config_t _udp_doppler;
+        int _doppler_port_ul;
+        int _doppler_port_dl;
+
         socket_config_t _server_conf;
 
         server_handler_t _server_fd;

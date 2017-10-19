@@ -7,8 +7,8 @@ GsControl::GsControl()
     _orb = new OrbitSimulator;
     _rot = new RotorControl((char *) "192.168.0.204", 8888);
 
-    strcpy(_udp_doppler.client.ip, "localhost");
-    _udp_doppler.client.port = 55002;
+    _doppler_port_ul = 52003;
+    _doppler_port_dl = 52002;
 
     _server_conf.server.port = 55001;
     server_socket_init(&_server_conf, &_server_fd);
@@ -289,13 +289,25 @@ void GsControl::sendDoppler(float freq_dl, float freq_ul)
     uint8_t datagram[128];
     int     datagramLength;
     /* información sobre la dirección del servidor */
-    if ((he=gethostbyname(_udp_doppler.client.ip)) != NULL) {
+    if ((he=gethostbyname("localhost")) != NULL) {
         if ((sock=socket(AF_INET, SOCK_DGRAM, 0))>0) {
             memset(&myaddr, 0, sizeof(myaddr));
             myaddr.sin_family=AF_INET;
             myaddr.sin_addr = *((struct in_addr *)he->h_addr);
-            myaddr.sin_port=htons(_udp_doppler.client.port);
-            sprintf((char *) datagram, "F_DL:%u;F_UL:%u\n", (unsigned int)freq_dl, freq_ul);
+            myaddr.sin_port=htons(_doppler_port_ul);
+            sprintf((char *) datagram, "F%u\n", (unsigned int) freq_ul);
+            datagramLength=strlen((char *) datagram);
+            sendto(sock, datagram, strlen((char *) datagram), 0, (struct sockaddr *)&myaddr, sizeof(myaddr));
+            close(sock);
+        }
+    }
+    if ((he=gethostbyname("localhost")) != NULL) {
+        if ((sock=socket(AF_INET, SOCK_DGRAM, 0))>0) {
+            memset(&myaddr, 0, sizeof(myaddr));
+            myaddr.sin_family=AF_INET;
+            myaddr.sin_addr = *((struct in_addr *)he->h_addr);
+            myaddr.sin_port=htons(_doppler_port_dl);
+            sprintf((char *) datagram, "F%u\n", (unsigned int)freq_dl);
             datagramLength=strlen((char *) datagram);
             sendto(sock, datagram, strlen((char *) datagram), 0, (struct sockaddr *)&myaddr, sizeof(myaddr));
             close(sock);
