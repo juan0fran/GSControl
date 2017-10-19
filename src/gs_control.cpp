@@ -6,6 +6,10 @@ GsControl::GsControl()
 {
     _orb = new OrbitSimulator;
     _rot = new RotorControl((char *) "192.168.0.204", 8888);
+
+    strcpy(_udp_doppler.client.ip, "localhost");
+    _udp_doppler.client.port = 55002;
+
     _server_conf.server.port = 55001;
     server_socket_init(&_server_conf, &_server_fd);
 
@@ -81,6 +85,8 @@ void GsControl::get_config(std::string path)
             op_conf_s._max_propagations = node[PROP_AMOUNT].as<int>();
             std::cout << "New max. propagations: " << op_conf_s._max_propagations << std::endl;
         }
+    }else {
+        std::cout << "File path is incorrect" << std::endl;
     }
 }
 
@@ -275,6 +281,28 @@ void GsControl::storeInDB()
     #endif
 }
 
+void GsControl::sendDoppler(float freq_dl, float freq_ul)
+{
+    int sock = -1;
+    struct sockaddr_in myaddr;
+    struct hostent *he;
+    uint8_t datagram[128];
+    int     datagramLength;
+    /* información sobre la dirección del servidor */
+    if ((he=gethostbyname(_udp_doppler.client.ip)) != NULL) {
+        if ((sock=socket(AF_INET, SOCK_DGRAM, 0))>0) {
+            memset(&myaddr, 0, sizeof(myaddr));
+            myaddr.sin_family=AF_INET;
+            myaddr.sin_addr = *((struct in_addr *)he->h_addr);
+            myaddr.sin_port=htons(_udp_doppler.client.port);
+            sprintf((char *) datagram, "F_DL:%u;F_UL:%u\n", (unsigned int)freq_dl, freq_ul);
+            datagramLength=strlen((char *) datagram);
+            sendto(sock, datagram, strlen((char *) datagram), 0, (struct sockaddr *)&myaddr, sizeof(myaddr));
+            close(sock);
+        }
+    }
+}
+
 void GsControl::initializeOrbitObject(OrbitSimulator *orb)
 {
     /* start orbit object */
@@ -306,12 +334,11 @@ void GsControl::runSatelliteTracking()
                 #ifdef ROTORS_BYPASS
                 std::cout << "Fake move rotors to: " << _passes.front().front().motor_az;
                 std::cout << ", " << _passes.front().front().motor_el << std::endl;
-                std::cout   << "Fake Doppler correction DL: "
-                            << op_conf_s._dl_freq+_passes.front().front().propagation.dl_doppler
-                            << " UL: " << op_conf_s._ul_freq+_passes.front().front().propagation.ul_doppler << std::endl;
                 #else
                 _rot->setRotorPosition(_passes.front().front().motor_az, _passes.front().front().motor_el);
                 #endif
+                sendDoppler(op_conf_s._dl_freq+_passes.front().front().propagation.dl_doppler,
+                            op_conf_s._ul_freq+_passes.front().front().propagation.ul_doppler);
             }
             for (PassInformationVec::iterator it = (_passes.front().begin()+1); it != _passes.front().end(); it++) {
                 /* we want to be there in advande, 1 second in advance... */
@@ -331,13 +358,11 @@ void GsControl::runSatelliteTracking()
                         #ifdef ROTORS_BYPASS
                         std::cout << "Fake move rotors to: " << it->motor_az;
                         std::cout << ", " << it->motor_el << std::endl;
-                        std::cout   << "Fake Doppler correction DL: "
-                                    << (op_conf_s._dl_freq+it->propagation.dl_doppler)/1e6
-                                    << " MHz; UL: " << (op_conf_s._ul_freq+it->propagation.ul_doppler)/1e6
-                                    << " MHz" << std::endl;
                         #else
                         _rot->setRotorPosition(it->motor_az, it->motor_el);
                         #endif
+                        sendDoppler((op_conf_s._dl_freq+it->propagation.dl_doppler),
+                                    (op_conf_s._ul_freq+it->propagation.ul_doppler));
                     }
                 }
             }

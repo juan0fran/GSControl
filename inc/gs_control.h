@@ -16,7 +16,6 @@
 #include <libpq-fe.h>
 
 #define TIMESTAMP_T                 uint32_t
-#define DEFAULT_CONFIG_FILE_PATH    "default.conf"
 
 #define TLE_KEY         "tle"
 #define UL_FREQ_KEY     "ul"
@@ -43,7 +42,6 @@ class GsControl : Motor_Angles {
         GsControl();
 
         void    get_config(std::string path);
-        void    get_config() { get_config(std::string(DEFAULT_CONFIG_FILE_PATH)); }
 
         void    setMinElevation(float el);
         void    setFrequencies(float dl, float ul);
@@ -77,6 +75,8 @@ class GsControl : Motor_Angles {
         time_t  getActualTime();
         time_t  fakeGetActualTime(long long offset);
 
+        void    sendDoppler(float freq_dl, float freq_ul);
+
         std::string     printReadble(time_t t);
 
         void    storeInDB();
@@ -106,6 +106,7 @@ class GsControl : Motor_Angles {
 
         PGconn          *_pgconn;
 
+        socket_config_t _udp_doppler;
         socket_config_t _server_conf;
 
         server_handler_t _server_fd;
