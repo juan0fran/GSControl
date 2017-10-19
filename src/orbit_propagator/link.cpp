@@ -85,8 +85,15 @@ double Link::computeRandomPointing()
 double Link::computeRandomFading()
 {
     /* rice(sigma, v) */
+    #ifdef USE_ITPP
     itpp::Rice_RNG rice(_s4_sigma, _s4_v);
     double value = -10.0 * std::log10(rice());
+    #else
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine generator (seed);
+    std::normal_distribution<double> distribution(0.0, _random_sigma);
+    double value = -1.0 * std::fabs(distribution(generator));
+    #endif
     return value;
 }
 

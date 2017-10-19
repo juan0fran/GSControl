@@ -1,8 +1,3 @@
-#include <cstdio>
-#include <iostream>
-#include <fstream>
-#include <locale>
-#include <thread>
 #include "orbit_simulator.h"
 
 OrbitSimulator::OrbitSimulator()

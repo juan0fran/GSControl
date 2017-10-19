@@ -1,6 +1,12 @@
 #ifndef __ORBIT_SIMULATOR_HPP__
 #define __ORBIT_SIMULATOR_HPP__
 
+#include <cstdio>
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <locale>
+#include <thread>
 #include <string>
 #include <vector>
 #include "link.h"

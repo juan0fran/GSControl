@@ -4,6 +4,9 @@
 #include <thread>         // std::this_thread::sleep_until
 #include <chrono>         // std::chrono::system_clock
 #include <ctime>          // std::time_t, std::tm, std::localtime, std::mktime
+#include <fstream>
+#include <cmath>
+#include <cstdlib>
 
 #include "socket_utils.h"
 #include "orbit_simulator.h"

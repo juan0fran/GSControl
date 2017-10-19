@@ -1,9 +1,11 @@
 #ifndef __LINK_HPP__
 #define __LINK_HPP__
 
+#ifdef USE_ITPP
 #include <itpp/comm/channel.h>
 #include <itpp/base/vec.h>
 #include <itpp/itbase.h>
+#endif
 
 typedef struct LinkResults{
     double snr;
