@@ -196,7 +196,7 @@ INLINE double    MOD2PI(double a) { a=fmod(a, TWOPI); return a < 0.0 ? a+TWOPI :
 INLINE double    MOD360(double a) { a=fmod(a, 360.0); return a < 0.0 ? a+360.0 : a; }
 
 
-void sincos(double val, double *sin_val, double *cos_val)
+void _sincos(double val, double *sin_val, double *cos_val)
 {
     *sin_val = sin(val);
     *cos_val = cos(val);
@@ -286,7 +286,7 @@ int init_sgdp4(orbit_t *orb)
     from input elements.
 	 */
 
-	sincos(xincl, &sinIO, &cosIO);
+	_sincos(xincl, &sinIO, &cosIO);
 
 	theta2 = cosIO * cosIO;
 	theta4 = theta2 * theta2;
@@ -441,7 +441,7 @@ int init_sgdp4(orbit_t *orb)
 
 	aycof = (real)0.25 * a3ovk2 * sinIO;
 
-	sincos(xmo, &sinXMO, &cosXMO);
+	_sincos(xmo, &sinXMO, &cosXMO);
 	delmo = CUBE((real)1.0 + eta * cosXMO);
 
 	if (imode == SGDP4_NEAR_NORM)
@@ -563,7 +563,7 @@ int sgdp4(double tsince, int withvel, kep_t *kep)
 	beta2 = (real)1.0 - e * e;
 
 	/* Long period periodics */
-	sincos(omega, &sinOMG, &cosOMG);
+	_sincos(omega, &sinOMG, &cosOMG);
 
 	temp0 = (real)1.0 / (a * beta2);
 	axn = e * cosOMG;
@@ -584,7 +584,7 @@ int sgdp4(double tsince, int withvel, kep_t *kep)
 	/*
 	 * Solve Kepler's equation using Newton-Raphson root solving. Here 'capu' is
 	 * almost the "Mean anomaly", initialise the "Eccentric Anomaly" term 'epw'.
-	 * The fmod() saves reduction of angle to +/-2pi in sincos() and prevents
+	 * The fmod() saves reduction of angle to +/-2pi in _sincos() and prevents
 	 * convergence problems.
 	 *
 	 * Later modified to support 2nd order NR method which saves roughly 1 iteration
@@ -598,7 +598,7 @@ int sgdp4(double tsince, int withvel, kep_t *kep)
 	for(ii = 0; ii < MAXI; ii++)
 	{
 		double nr, f, df;
-		sincos(epw, &sinEPW, &cosEPW);
+		_sincos(epw, &sinEPW, &cosEPW);
 
 		ecosE = axn * cosEPW + ayn * sinEPW;
 		esinE = axn * sinEPW - ayn * cosEPW;
@@ -711,9 +711,9 @@ void kep2xyz(kep_t *K, xyz_t *pos, xyz_t *vel)
 
 	/* Orientation vectors for X-Y-Z format. */
 
-	sincos((real)K->theta, &sinT, &cosT);
-	sincos((real)K->eqinc, &sinI, &cosI);
-	sincos((real)K->ascn,  &sinS, &cosS);
+	_sincos((real)K->theta, &sinT, &cosT);
+	_sincos((real)K->eqinc, &sinI, &cosI);
+	_sincos((real)K->ascn,  &sinS, &cosS);
 
 	xmx = -sinS * cosI;
 	xmy =  cosS * cosI;

@@ -60,7 +60,7 @@
 
 #ifdef linux
 #include <stdint.h>
-void sincos(double x, double *s, double *c); /* declared where? */
+void _sincos(double x, double *s, double *c); /* declared where? */
 #endif
 
 /*
@@ -261,7 +261,7 @@ version of these functions.
 */
 
 #ifdef MACRO_SINCOS
-#define sincos(x,s,c) {double sc__tmp=(x);\
+#define _sincos(x,s,c) {double sc__tmp=(x);\
                        *(s)=sin(sc__tmp);\
                        *(c)=cos(sc__tmp);}
 
@@ -287,7 +287,7 @@ version of these functions.
                        *(s)=(real)s__tmp;\
                        *(c)=(real)c__tmp);}
 #else
-#define SINCOS sincos
+#define SINCOS _sincos
 #endif /* ! SGDP4_SNGL */
 #endif /* ! MACRO_SINCOS */
 
@@ -334,7 +334,7 @@ version of these functions.
 
 /* ======================= Function prototypes ====================== */
 
-void sincos(double val, double *sin_val, double *cos_val);
+void _sincos(double val, double *sin_val, double *cos_val);
 //void sincosf(float, float *, float *);
 
 /** satutl.c **/

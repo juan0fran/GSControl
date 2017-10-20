@@ -17,7 +17,7 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include <libpq-fe.h>
+#include <postgresql/libpq-fe.h>
 
 #define TIMESTAMP_T                 uint32_t
 
