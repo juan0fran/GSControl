@@ -12,6 +12,7 @@
 #include "orbit_simulator.h"
 #include "motor_angles.h"
 #include "rotor_control.h"
+#include "switch_control.h"
 #include "gs_commands.h"
 
 #include <yaml-cpp/yaml.h>
@@ -67,11 +68,12 @@ class GsControl : Motor_Angles {
 
         void    printPass(int pass_number);
 
-        void    waitForPass();
         void    runSatelliteTracking();
 
-        int     handleCommand();
         int     handleCommand(int timeout);
+        /* 0 means no timeout --> just see if there is something there */
+        int     handleCommand() {return (handleCommand(0));}
+
 
         bool    isPassesFull();
 
@@ -105,7 +107,10 @@ class GsControl : Motor_Angles {
         }op_conf_s;
 
         OrbitSimulator  *_orb;
-        RotorControl    *_rot;
+        RotorControl    *_rot;              /* IP: 192.168.0.204:8888 */
+        SwitchControl   *_supply;           /* IP: 192.168.0.20X:8888 */
+        SwitchControl   *_pol_selector;     /* IP: 192.168.0.20X:8888 */
+        SwitchControl   *_trx_selector;     /* IP: 192.168.0.20X:8888 */
 
         PGconn          *_pgconn;
 

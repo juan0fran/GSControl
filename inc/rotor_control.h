@@ -12,11 +12,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-typedef enum ERRNO_CODE {
-    NO_ERROR,
-    ERROR,
-}ERRNO_CODE;
-
 typedef enum rotor_mode_e{
     ROT_STOP = 0,
     ROT_SET = 1,
@@ -39,9 +34,6 @@ class RotorControl {
 
         void        init_socket(RotorControl *sc);
         int         blockingRead(int timeout_ms);
-
-        ERRNO_CODE  set();
-        ERRNO_CODE  get();
 
         bool        connected_motor;
 

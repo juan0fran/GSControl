@@ -110,7 +110,7 @@ void SwitchControl::setOutput(uint8_t output, GSSW_OUT state)
     _set_data.set.channel[output-1] = state;
 }
 
-ERRNO_CODE SwitchControl::set()
+ERRNO_CODE_SW SwitchControl::set()
 {
     _set_data.mode = GSSW_MODE_SET;
     if (sendAndReceive(&_set_data, sizeof(_set_data)) > 0) {
@@ -120,7 +120,7 @@ ERRNO_CODE SwitchControl::set()
     }
 }
 
-ERRNO_CODE SwitchControl::get()
+ERRNO_CODE_SW SwitchControl::get()
 {
     int ret;
     memset(&_get_data, 0, sizeof(_get_data));
@@ -222,7 +222,9 @@ int main (void)
     SwitchControl switch1((char *) "192.168.0.205", 8888);
     printf("Socket created\n");
 
+    /*
     switch1.setLCD("FEO", "ARNAU");
+    */
     /*
     switch1.enableOutput(1);
     switch1.enableOutput(2);

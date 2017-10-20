@@ -9,10 +9,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-typedef enum ERRNO_CODE {
+typedef enum ERRNO_CODE_SW {
     NO_ERROR,
     ERROR,
-}ERRNO_CODE;
+}ERRNO_CODE_SW;
 
 typedef enum GSSW_MODE {
     GSSW_MODE_GET = 0,
@@ -61,8 +61,8 @@ class SwitchControl {
         void        setOutput(uint8_t output, GSSW_OUT state);
         void        setFan(GSSW_OUT state);
 
-        ERRNO_CODE  set();
-        ERRNO_CODE  get();
+        ERRNO_CODE_SW  set();
+        ERRNO_CODE_SW  get();
 
     public:
         SwitchControl();

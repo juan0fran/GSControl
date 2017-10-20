@@ -436,7 +436,7 @@ int GsControl::handleCommand(int timeout)
                     cmd_op = (change_op_parameters_cmd *) _client.buffer;
                     get_config(cmd_op->filepath);
                     loadParms();
-                    _passes.clear();
+                    clearPasses();
                     return RELOAD_GS;
                     break;
                 default:
@@ -449,10 +449,4 @@ int GsControl::handleCommand(int timeout)
         }
     }
     return NON_OP;
-}
-
-int GsControl::handleCommand()
-{
-    /* 0 means no timeout --> just see if there is something there */
-    return (handleCommand(0));
 }
