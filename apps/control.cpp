@@ -47,7 +47,7 @@ int main(int argc, char **argv)
     gs.get_config(default_path);
     gs.loadParms();
 
-    while (1) {
+    while(1) {
         /* propagate for the next pass from now */
         gs.checkPasses();
         while(gs.isPassesFull() == false) {
