@@ -17,7 +17,11 @@
 
 #include <yaml-cpp/yaml.h>
 
+#if defined(__APPLE__)
+#include <libpq-fe.h>
+#else
 #include <postgresql/libpq-fe.h>
+#endif
 
 #define TIMESTAMP_T                 uint32_t
 
