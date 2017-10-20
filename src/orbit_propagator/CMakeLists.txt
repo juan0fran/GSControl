@@ -6,4 +6,6 @@ set_target_properties(orbit_simulator PROPERTIES
 			VERSION 0.1
 			SUBVERSION 1)
 
-target_link_libraries(orbit_simulator)
+target_link_libraries(orbit_simulator c_orbit_propagator)
+
+add_subdirectory(external)

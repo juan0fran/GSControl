@@ -74,7 +74,7 @@ void _sincos(double x, double *s, double *c); /* declared where? */
 #define INLINE
 #else
 /*UNIX?*/
-#define INLINE inline
+#define INLINE
 #endif
 
 /* Sun C compiler has automatic inline and doesn't understand inline keyword */
@@ -317,8 +317,8 @@ version of these functions.
 #define CUBE FCUBE
 #define POW4 FPOW4
 #else
-#define CUBE DCUBE
-#define POW4 DPOW4
+#define CUBE(X) DCUBE(X)
+#define POW4(X) DPOW4(X)
 #endif
 
 /* SGDP4 function return values. */
