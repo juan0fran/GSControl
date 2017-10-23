@@ -81,6 +81,8 @@ int propagate_and_get_visibility(visibility_config_t * conf, propagation_output_
 int propagate_and_get_llh(propagation_config_t *conf, vec3 * llh);
 bool ispoint_inside_region(vec3 pt, square_region_t reg);
 
+int load_tle_from_stringd(char *str, tle_set *tle);
+
 #ifdef __cplusplus
 }
 #endif

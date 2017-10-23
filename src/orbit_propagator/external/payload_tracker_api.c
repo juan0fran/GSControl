@@ -1,5 +1,49 @@
 #include "payload_tracker_api.h"
 
+int load_tle_from_stringd(char *str, tle_set *tle)
+{
+    char tle_copy[256];
+    int first = 1;
+    char *line;
+    if (tle == NULL){
+        return -1;
+    }
+    strcpy(tle_copy, str);
+    line = strtok(tle_copy, "\n");
+    while(line != NULL) {
+        /* Get endlines out */
+        if (strlen(line) <= TLE_NAME_SIZE + 2){
+            if (strlen(line) > TLE_NAME_SIZE){
+                strncpy(tle->lines._name, line, TLE_NAME_SIZE);
+                tle->lines._name[TLE_NAME_SIZE] = '\0';
+            }else{
+                strncpy(tle->lines._name, line, strlen(line) - 1);
+                tle->lines._name[TLE_NAME_SIZE] = '\0';
+            }
+        }else{
+            if (first){
+                if (strlen(tle->lines._name) == 0){
+                    strcpy(tle->lines._name, "DUMMYsat");
+                    tle->lines._name[TLE_NAME_SIZE] = '\0';
+                }
+                if (line[0] != '1'){
+                    return -1;
+                }
+                strncpy(tle->lines._1, line, TLE_LINE_SIZE);
+                first = 0;
+            }else{
+                if (line[0] != '2'){
+                    return -1;
+                }
+                strncpy(tle->lines._2, line, TLE_LINE_SIZE);
+                return 0;
+            }
+        }
+        line = strtok(NULL, "\n");
+    }
+    return -1;
+}
+
 static tle_set * load_tle_from_string(char *str)
 {
     char tle_copy[256];

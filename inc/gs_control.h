@@ -8,9 +8,11 @@
 #include <cmath>
 #include <cstdlib>
 
+#include <map>
+#include <tuple>
+
 #include "socket_utils.h"
 #include "orbit_simulator.h"
-#include "motor_angles.h"
 #include "rotor_control.h"
 #include "switch_control.h"
 #include "gs_commands.h"
@@ -45,41 +47,26 @@
 #define RELOAD_GS   1
 #define NON_OP      0
 
-class GsControl : Motor_Angles {
+class GsControl {
     public:
-        GsControl();
+
+        typedef std::tuple<unsigned long, unsigned long> SatPassTuple;
+        typedef std::vector<SatPassTuple> SatPassTupleVector;
+        typedef std::map<int, SatPassTupleVector> NotificationMap;
+
+        GsControl(double gs_lat, double gs_lon, double gs_h, int timestep, int max_propagations);
 
         void    get_config(std::string path);
 
-        void    setMinElevation(float el);
-        void    setFrequencies(float dl, float ul);
-        void    setTLE(char *path);
-        void    setTLE(std::string path);
-        void    setTimestep(int times);
-        void    setLocation(float lat_gs, float lon_gs, float h_gs);
-        void    setMaxPropagations(int max);
-        void    setTimePointingOffset(time_t offset);
-
-        void    loadParms();
-
-        void    addNextPassFrom(TIMESTAMP_T t);
-        void    addNextPassFromLast();
-
-        void    clearPasses();
-        void    checkPasses();
-
-        bool    doesPassExist();
-
-        void    printPass(int pass_number);
+        void    addNewSatellite(double min_el, double dl_f, double ul_f, char *tle);
+        NotificationMap getMap();
+        void    propagate();
 
         void    runSatelliteTracking();
 
         int     handleCommand(int timeout);
         /* 0 means no timeout --> just see if there is something there */
-        int     handleCommand() {return (handleCommand(0));}
-
-
-        bool    isPassesFull();
+        int     handleCommand() { return (handleCommand(0)); }
 
         time_t  getActualTime();
         time_t  fakeGetActualTime(long long offset);
@@ -90,27 +77,19 @@ class GsControl : Motor_Angles {
 
         void    storeInDB();
 
-        PassesVec       _passes;
+        std::vector<OrbitSimulator> propagationVector;
 
     private:
 
-        void initializeOrbitObject(OrbitSimulator *orb);
+        OrbitSimulator      initializeOrbitObject(  double min_el,
+                                                    double dl_f, double ul_f,
+                                                    double gs_lat, double gs_lon, double gs_h,
+                                                    char *tle, int sim_timestep, int max_propagations);
 
-        struct op_conf_s{
-            int     _timestep;
-            char    _tle_string[256];
-            float   _ul_freq, _dl_freq;
-            float   _min_el;
-            time_t  _pre_propagation_offset_seconds;
-            int     _max_propagations;
-            struct {
-                float lat;
-                float lon;
-                float h;
-            }_gs;
-        }op_conf_s;
+        int _max_propagations;
+        int _sim_timestep;
+        double _gs_lat, _gs_lon, _gs_h;
 
-        OrbitSimulator  *_orb;
         RotorControl    *_rot;              /* IP: 192.168.0.204:8888 */
         SwitchControl   *_supply;           /* IP: 192.168.0.20X:8888 */
         SwitchControl   *_pol_selector;     /* IP: 192.168.0.20X:8888 */

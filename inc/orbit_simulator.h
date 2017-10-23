@@ -9,46 +9,61 @@
 #include <thread>
 #include <string>
 #include <vector>
-#include "link.h"
+
 #include "payload_tracker_api.h"
 
-struct SimulatorResults {
+struct PassInformation {
     propagation_output_t propagation;
-    LinkResults link;
+    double motor_az;
+    double motor_el;
+    bool operator==(const PassInformation& pass) const { return (pass.propagation.timestamp == propagation.timestamp); }
+    bool operator!=(const PassInformation& pass) const { return (pass.propagation.timestamp != propagation.timestamp); }
+    bool operator<=(const PassInformation& pass) const { return (propagation.timestamp <= pass.propagation.timestamp); }
+    bool operator< (const PassInformation& pass) const { return (propagation.timestamp < pass.propagation.timestamp); }
 };
 
-typedef std::vector<SimulatorResults> SimulatorResultsVec;
+typedef std::vector<PassInformation> PassInformationVec;
 
-class OrbitSimulator : public Link{
+class OrbitSimulator {
     public:
         OrbitSimulator();
         ~OrbitSimulator();
 
-        void SetMinimumElevation(double elev);
-        void SetCommsFreq(double freq_dl, double freq_ul);
-        void SetGroundLocation(double lat, double lon, double height);
-        void SetSpaceTLEFile(const char *tle);
-        void SetTimestep(unsigned long timestep);
+        void setMinimumElevation(double elev);
+        void setCommsFreq(double freq_dl, double freq_ul);
+        void setGroundLocation(double lat, double lon, double height);
+        void setSpaceTLEFile(const char *tle);
+        void setTimestep(unsigned long timestep);
+        void setMaxPropagations(unsigned long prop);
 
-        std::string GetResults();
+        std::vector<PassInformationVec> passes;
 
-        unsigned long getLastFoundPassStart();
-        unsigned long getLastFoundPassEnd();
-        unsigned long getLastPassDuration();
-        unsigned long getPassAvailability();
+        void setNoradIDFromTLE(char *tle);
+        unsigned int getMyNoradID() {return (_norad_id);}
 
-        void run();
-        int findNextPass(unsigned long start_timestamp);
-
-        SimulatorResultsVec   Results;
+        void propagate();
 
     private:
         visibility_config_t     _orbit_conf;
         double                  _min_elev;
         unsigned long           _sim_timestep;
+        unsigned long           _max_propagations;
 
         unsigned long           _last_pass_start;
         unsigned long           _last_pass_end;
+
+        PassInformationVec      _pass;
+
+        unsigned int            _norad_id;
+
+        time_t getActualTime()
+        {
+            return (std::chrono::system_clock::to_time_t (std::chrono::system_clock::now()));
+        }
+
+        void computeMotorAngle(PassInformationVec pass_info);
+        bool doesPassExist();
+        int findNextPass(unsigned long start_timestamp);
 
 };
 

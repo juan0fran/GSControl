@@ -2,30 +2,85 @@
 
 #define ROTORS_BYPASS
 
-GsControl::GsControl()
+GsControl::GsControl(double gs_lat, double gs_lon, double gs_h, int timestep, int max_propagations)
 {
-    _orb = new OrbitSimulator;
     _rot = new RotorControl((char *) "192.168.0.204", 8888);
 
     _doppler_port_ul = 52003;
     _doppler_port_dl = 52002;
 
     _server_conf.server.port = 55001;
-    server_socket_init(&_server_conf, &_server_fd);
+    //server_socket_init(&_server_conf, &_server_fd);
 
     _connected_user = false;
     _error_in_op = false;
 
     _rotors_enabled = true;
 
-    op_conf_s._min_el = 5.0;
-    op_conf_s._timestep = 5;
-    op_conf_s._max_propagations = 1;
-    op_conf_s._pre_propagation_offset_seconds = 0;
+    _gs_lat = gs_lat;
+    _gs_lon = gs_lon;
+    _gs_h   = gs_h;
+    _sim_timestep = timestep;
+    _max_propagations = max_propagations;
+}
+
+void GsControl::addNewSatellite(double min_el, double dl_f, double ul_f, char *tle)
+{
+    /*  check if the satellite already exists in any propagation module enabled...
+     *  get all objects from orbit sim vector
+     */
+    OrbitSimulator orb = initializeOrbitObject( min_el, dl_f, ul_f, _gs_lat, _gs_lon, _gs_h,
+                                                tle, _sim_timestep, _max_propagations);
+    if (propagationVector.size() == 0) {
+        if (orb.getMyNoradID() != 0) {
+            std::cout << "Norad object " << orb.getMyNoradID() << " created" << std::endl;
+            propagationVector.push_back(orb);
+        }
+    }else {
+        int sat_count = 0;
+        for (std::vector<OrbitSimulator>::iterator it = propagationVector.begin(); it != propagationVector.end(); it++) {
+            /* get all OrbitSimulator from propagationVector, compare its NORAD ID */
+            if (orb.getMyNoradID() != it->getMyNoradID() && orb.getMyNoradID() != 0) {
+                sat_count++;
+            }
+        }
+        if (sat_count == propagationVector.size()) {
+            std::cout << "Norad object " << orb.getMyNoradID() << " created" << std::endl;
+            propagationVector.push_back(orb);
+        }
+    }
+}
+
+GsControl::NotificationMap GsControl::getMap()
+{
+    /* map contains NORAD ID and start-stop times */
+    NotificationMap map;
+    SatPassTupleVector vec;
+    int norad_id;
+    for (std::vector<OrbitSimulator>::iterator it = propagationVector.begin(); it != propagationVector.end(); it++) {
+        /* it-> is a OrbitSimulator class instance */
+        vec.clear();
+        norad_id = it->getMyNoradID();
+        for (std::vector<PassInformationVec>::iterator it2 = it->passes.begin(); it2 != it->passes.end(); it2++) {
+            /* it2-> is a iterator of different PassInformationVec containing a vector of PassInformation */
+            SatPassTuple tup = std::make_tuple(it2->front().propagation.timestamp, it2->back().propagation.timestamp);
+            vec.push_back(tup);
+        }
+        map[norad_id] = vec;
+    }
+    return map;
+}
+
+void GsControl::propagate()
+{
+    for (std::vector<OrbitSimulator>::iterator it = propagationVector.begin(); it != propagationVector.end(); it++) {
+        it->propagate();
+    }
 }
 
 void GsControl::get_config(std::string path)
 {
+#if 0
     YAML::Node node;
     std::ifstream file(path);
     if (file.is_open()) {
@@ -88,54 +143,7 @@ void GsControl::get_config(std::string path)
     }else {
         std::cout << "File path is incorrect" << std::endl;
     }
-}
-
-void GsControl::setTimePointingOffset(time_t offset)
-{
-    op_conf_s._pre_propagation_offset_seconds = offset;
-}
-
-void GsControl::setMaxPropagations(int max)
-{
-    op_conf_s._max_propagations = max;
-}
-
-void GsControl::setMinElevation(float el)
-{
-    op_conf_s._min_el = el;
-}
-
-void GsControl::setFrequencies(float dl, float ul)
-{
-    op_conf_s._dl_freq = dl;
-    op_conf_s._ul_freq = ul;
-}
-
-void GsControl::setTLE(std::string path)
-{
-    strncpy(op_conf_s._tle_string, path.c_str(), path.length());
-}
-
-void GsControl::setTLE(char *path)
-{
-    strcpy(op_conf_s._tle_string, path);
-}
-
-void GsControl::setTimestep(int times)
-{
-    op_conf_s._timestep = times;
-}
-
-void GsControl::setLocation(float lat_gs, float lon_gs, float h_gs)
-{
-    op_conf_s._gs.lat = lat_gs;
-    op_conf_s._gs.lon = lon_gs;
-    op_conf_s._gs.h   = h_gs;
-}
-
-void GsControl::loadParms()
-{
-    initializeOrbitObject(_orb);
+#endif
 }
 
 time_t GsControl::fakeGetActualTime(long long offset)
@@ -153,74 +161,11 @@ std::string GsControl::printReadble(time_t t)
     struct tm tm;
     char date[20];
     localtime_r(&t, &tm);
-    strftime(date, sizeof(date), "%Y-%m-%d", &tm);
+    strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", &tm);
     return (std::string(date));
 }
 
-void GsControl::clearPasses()
-{
-    _passes.clear();
-}
-
-void GsControl::addNextPassFrom(TIMESTAMP_T t)
-{
-    /* i have to take a look if the pass exists before "adding" it */
-    if (_orb->findNextPass(t) == -1) {
-        _error_in_op = true;
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        /* sleep this to avoid processor overload */
-    }else {
-        /* the pass exists? */
-        computeMotorAngle(_orb->Results);
-        if (!doesPassExist()) {
-            _passes.push_back(_pass);
-        }
-        //printPass(_passes.size());
-    }
-}
-
-void GsControl::addNextPassFromLast()
-{
-    if (_passes.size() > 0) {
-        if ((size_t)_passes.size() < (size_t)op_conf_s._max_propagations) {
-            /* just start the simulation i.e. 30 minutes after */
-            addNextPassFrom((_passes.back().back().propagation.timestamp) + (30*60));
-        }
-    }else {
-        addNextPassFrom(getActualTime());
-    }
-}
-
-bool GsControl::isPassesFull()
-{
-    return ((size_t)op_conf_s._max_propagations == (size_t)_passes.size());
-}
-
-bool GsControl::doesPassExist()
-{
-    /*  */
-    for (PassesVec::iterator it = _passes.begin(); it != _passes.end(); it++) {
-        if ((_pass.front() <= it->back())) {
-            /* in case that the calculated pass is, in time, lower any calculated, just erase */
-            return true;
-        }
-    }
-    return false;
-}
-
-void GsControl::checkPasses()
-{
-    /* checks if the pass is on the "past" */
-    for (PassesVec::iterator it = _passes.begin(); it != _passes.end(); ) {
-        if ((time_t) it->back().propagation.timestamp < (time_t) getActualTime()) {
-            /* remove myself */
-            it = _passes.erase(it);
-        }else {
-            ++it;
-        }
-    }
-}
-
+#if 0
 void GsControl::printPass(int pass_number)
 {
     if ((size_t)pass_number > (size_t)_passes.size()) {
@@ -236,50 +181,7 @@ void GsControl::printPass(int pass_number)
         std::cout << it->propagation.dl_doppler << std::endl;
     }
 }
-
-void GsControl::storeInDB()
-{
-    #if 0
-    PGresult   *res;
-    char call[2048];
-    /* Check to see that the backend connection was successfully made */
-    _pgconn = PQsetdbLogin("localhost", "5432", NULL, NULL, "juan0fran", "juan0fran", "root");
-    /* Check to see that the backend connection was successfully made */
-    if (PQstatus(_pgconn) != CONNECTION_OK) {
-        std::cout << "Connection to database failed: " << PQerrorMessage(_pgconn) << std::endl;
-        PQfinish(_pgconn);
-        _exit(1);
-    }
-
-    /* Check if exists a pass between start and end timestamp --> get the pass id and remove it */
-
-    for (!!!!!::iterator it = _passes.front().begin(); it != _passes.front().end(); it++) {
-        memset(call, 0, sizeof(call));
-        sprintf(call,   "INSERT INTO _example_table\r\n"
-                        "VALUES (to_timestamp(%d), %f, %f, %f, %f, %f, %f, to_timestamp(%d))\r\n"
-                        "ON CONFLICT (timestamp)\r\n"
-                        "DO NOTHING",
-                            (int) it->propagation.timestamp,
-                            it->propagation.az,
-                            it->propagation.el,
-                            it->motor_el,
-                            it->motor_el,
-                            it->propagation.dl_doppler,
-                            it->propagation.ul_doppler,
-                            (int) _passes.front().front().propagation.timestamp);
-        res = PQexec(_pgconn, call);
-        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-            std::cout << "INSERT failed: " << PQerrorMessage(_pgconn) << std::endl;
-            PQclear(res);
-            PQfinish(_pgconn);
-            _exit(1);
-        }
-        PQclear(res);
-    }
-    PQfinish(_pgconn);
-    std::cout << "Finished copying to DB" << std::endl;
-    #endif
-}
+#endif
 
 void GsControl::sendDoppler(float freq_dl, float freq_ul)
 {
@@ -315,16 +217,23 @@ void GsControl::sendDoppler(float freq_dl, float freq_ul)
     }
 }
 
-void GsControl::initializeOrbitObject(OrbitSimulator *orb)
+OrbitSimulator GsControl::initializeOrbitObject(    double min_el,
+                                                    double dl_f, double ul_f,
+                                                    double gs_lat, double gs_lon, double gs_h,
+                                                    char *tle, int sim_timestep, int max_propagations)
 {
     /* start orbit object */
-    orb->SetMinimumElevation(op_conf_s._min_el);
-    orb->SetCommsFreq(op_conf_s._dl_freq, op_conf_s._ul_freq);
-    orb->SetGroundLocation(op_conf_s._gs.lat, op_conf_s._gs.lon, op_conf_s._gs.h);
-    orb->SetSpaceTLEFile(op_conf_s._tle_string);
-    orb->SetTimestep(op_conf_s._timestep);
+    OrbitSimulator orb;
+    orb.setMinimumElevation(min_el);
+    orb.setCommsFreq(dl_f, ul_f);
+    orb.setGroundLocation(gs_lat, gs_lon, gs_h);
+    orb.setSpaceTLEFile(tle);
+    orb.setTimestep(sim_timestep);
+    orb.setMaxPropagations(max_propagations);
+    return orb;
 }
 
+#if 0
 void GsControl::runSatelliteTracking()
 {
     /* given the pass structure, point the antennas to the first poisition */
@@ -381,6 +290,7 @@ void GsControl::runSatelliteTracking()
         }
     }
 }
+#endif
 
 int GsControl::handleCommand(int timeout)
 {
@@ -435,8 +345,8 @@ int GsControl::handleCommand(int timeout)
                 case CMD_ID_CHANGE_OP_PARMS:
                     cmd_op = (change_op_parameters_cmd *) _client.buffer;
                     get_config(cmd_op->filepath);
-                    loadParms();
-                    clearPasses();
+                    //loadParms();
+                    /* TODO: clearPasses before re-excuting OB */
                     return RELOAD_GS;
                     break;
                 default:
@@ -449,4 +359,48 @@ int GsControl::handleCommand(int timeout)
         }
     }
     return NON_OP;
+}
+
+void GsControl::storeInDB()
+{
+    #if 0
+    PGresult   *res;
+    char call[2048];
+    /* Check to see that the backend connection was successfully made */
+    _pgconn = PQsetdbLogin("localhost", "5432", NULL, NULL, "juan0fran", "juan0fran", "root");
+    /* Check to see that the backend connection was successfully made */
+    if (PQstatus(_pgconn) != CONNECTION_OK) {
+        std::cout << "Connection to database failed: " << PQerrorMessage(_pgconn) << std::endl;
+        PQfinish(_pgconn);
+        _exit(1);
+    }
+
+    /* Check if exists a pass between start and end timestamp --> get the pass id and remove it */
+
+    for (!!!!!::iterator it = _passes.front().begin(); it != _passes.front().end(); it++) {
+        memset(call, 0, sizeof(call));
+        sprintf(call,   "INSERT INTO _example_table\r\n"
+                        "VALUES (to_timestamp(%d), %f, %f, %f, %f, %f, %f, to_timestamp(%d))\r\n"
+                        "ON CONFLICT (timestamp)\r\n"
+                        "DO NOTHING",
+                            (int) it->propagation.timestamp,
+                            it->propagation.az,
+                            it->propagation.el,
+                            it->motor_el,
+                            it->motor_el,
+                            it->propagation.dl_doppler,
+                            it->propagation.ul_doppler,
+                            (int) _passes.front().front().propagation.timestamp);
+        res = PQexec(_pgconn, call);
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+            std::cout << "INSERT failed: " << PQerrorMessage(_pgconn) << std::endl;
+            PQclear(res);
+            PQfinish(_pgconn);
+            _exit(1);
+        }
+        PQclear(res);
+    }
+    PQfinish(_pgconn);
+    std::cout << "Finished copying to DB" << std::endl;
+    #endif
 }
